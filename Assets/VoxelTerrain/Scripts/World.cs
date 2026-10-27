@@ -26,6 +26,9 @@ public class World : MonoBehaviour
 
     public UnityEvent OnWorldCreated, OnNewChunksGenerated;
 
+    [Tooltip("Build the world as soon as Play starts. Off = wait for the Regenerate button.")]
+    public bool generateOnStart = true;
+
     public WorldData worldData { get; private set; }
 
     private void Awake()
@@ -37,6 +40,12 @@ public class World : MonoBehaviour
             chunkDataDictionary = new Dictionary<Vector3Int, ChunkData>(),
             chunkDictionary = new Dictionary<Vector3Int, ChunkRenderer>()
         };
+    }
+
+    private void Start()
+    {
+        if (generateOnStart)
+            GenerateWorld();
     }
 
     public void GenerateWorld()
