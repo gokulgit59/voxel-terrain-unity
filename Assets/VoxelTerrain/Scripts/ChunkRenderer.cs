@@ -12,6 +12,7 @@ public class ChunkRenderer : MonoBehaviour
     MeshFilter meshFilter;
     MeshCollider meshCollider;
     Mesh mesh;
+    Mesh collisionMesh;
     public bool showGizmo = false;
 
     public ChunkData ChunkData { get; private set; }
@@ -33,6 +34,14 @@ public class ChunkRenderer : MonoBehaviour
         meshFilter = GetComponent<MeshFilter>();
         meshCollider = GetComponent<MeshCollider>();
         mesh = meshFilter.mesh;
+        // One collision mesh per chunk, reused on every rebuild (a new Mesh per update was never destroyed).
+        collisionMesh = new Mesh { name = "Chunk Collider" };
+    }
+
+    private void OnDestroy()
+    {
+        Destroy(mesh);
+        Destroy(collisionMesh);
     }
 
     public void InitializeChunk(ChunkData data)
@@ -59,13 +68,12 @@ public class ChunkRenderer : MonoBehaviour
         List<int> colliderTriangles = new List<int>();
         GreedyColliderMesher.BuildColliderMesh(ChunkData, colliderVertices, colliderTriangles);
 
-        Mesh collisionMesh = new Mesh();
+        collisionMesh.Clear();
         collisionMesh.indexFormat = colliderVertices.Count > 65000
             ? UnityEngine.Rendering.IndexFormat.UInt32
             : UnityEngine.Rendering.IndexFormat.UInt16;
         collisionMesh.vertices = colliderVertices.ToArray();
         collisionMesh.triangles = colliderTriangles.ToArray();
-        collisionMesh.RecalculateNormals();
 
         meshCollider.sharedMesh = collisionMesh;
     }
