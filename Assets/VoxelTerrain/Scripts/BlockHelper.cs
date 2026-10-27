@@ -14,18 +14,56 @@ public static class BlockHelper
         Direction.up
     };
 
+    // Same order as directions.
+    private static readonly Vector3Int[] directionVectors =
+    {
+        Vector3Int.back,
+        Vector3Int.down,
+        Vector3Int.forward,
+        Vector3Int.left,
+        Vector3Int.right,
+        Vector3Int.up
+    };
+
+    // Indexed by (int)BlockType. Built once per chunk mesh so face tests don't hit the dictionary.
+    public static bool[] BuildSolidTable()
+    {
+        var values = (BlockType[])System.Enum.GetValues(typeof(BlockType));
+        bool[] solid = new bool[values.Length];
+        foreach (BlockType blockType in values)
+        {
+            if (BlockDataManager.blockTextureDataDictionary.TryGetValue(blockType, out TextureData data))
+                solid[(int)blockType] = data.isSolid;
+        }
+        return solid;
+    }
+
     public static MeshData GetMeshData
         (ChunkData chunk, int x, int y, int z, MeshData meshData, BlockType blockType)
+    {
+        return GetMeshData(chunk, x, y, z, meshData, blockType, BuildSolidTable());
+    }
+
+    public static MeshData GetMeshData
+        (ChunkData chunk, int x, int y, int z, MeshData meshData, BlockType blockType, bool[] isSolid)
     {
         if (blockType == BlockType.Air || blockType == BlockType.Nothing)
             return meshData;
 
-        foreach (Direction direction in directions)
+        for (int i = 0; i < directions.Length; i++)
         {
-            var neighbourBlockCoordinates = new Vector3Int(x, y, z) + direction.GetVector();
-            var neighbourBlockType = Chunk.GetBlockFromChunkCoordinates(chunk, neighbourBlockCoordinates);
+            Direction direction = directions[i];
+            Vector3Int offset = directionVectors[i];
+            int nx = x + offset.x, ny = y + offset.y, nz = z + offset.z;
 
-            if (neighbourBlockType != BlockType.Nothing && BlockDataManager.blockTextureDataDictionary[neighbourBlockType].isSolid == false)
+            // Neighbours inside the chunk are read straight from the block array; only edge faces go through the world.
+            BlockType neighbourBlockType;
+            if (nx >= 0 && nx < chunk.chunkSize && ny >= 0 && ny < chunk.chunkHeight && nz >= 0 && nz < chunk.chunkSize)
+                neighbourBlockType = chunk.blocks[nx + chunk.chunkSize * ny + chunk.chunkSize * chunk.chunkHeight * nz];
+            else
+                neighbourBlockType = Chunk.GetBlockFromChunkCoordinates(chunk, nx, ny, nz);
+
+            if (neighbourBlockType != BlockType.Nothing && isSolid[(int)neighbourBlockType] == false)
             {
 
                 if (blockType == BlockType.Water)
@@ -48,7 +86,7 @@ public static class BlockHelper
     {
         GetFaceVertices(direction, x, y, z, meshData, blockType);
         meshData.AddQuadTriangles();
-        meshData.uv.AddRange(FaceUVs(direction, blockType));
+        AddFaceUVs(meshData.uv, direction, blockType);
 
 
         return meshData;
@@ -99,6 +137,20 @@ public static class BlockHelper
             default:
                 break;
         }
+    }
+
+    // Same four UVs as FaceUVs, written straight into the list (no array per face).
+    public static void AddFaceUVs(List<Vector2> uvs, Direction direction, BlockType blockType)
+    {
+        var tilePos = TexturePosition(direction, blockType);
+        float left = BlockDataManager.tileSizeX * tilePos.x + BlockDataManager.textureOffset;
+        float right = BlockDataManager.tileSizeX * tilePos.x + BlockDataManager.tileSizeX - BlockDataManager.textureOffset;
+        float bottom = BlockDataManager.tileSizeY * tilePos.y + BlockDataManager.textureOffset;
+        float top = BlockDataManager.tileSizeY * tilePos.y + BlockDataManager.tileSizeY - BlockDataManager.textureOffset;
+        uvs.Add(new Vector2(right, bottom));
+        uvs.Add(new Vector2(right, top));
+        uvs.Add(new Vector2(left, top));
+        uvs.Add(new Vector2(left, bottom));
     }
 
     public static Vector2[] FaceUVs(Direction direction, BlockType blockType)

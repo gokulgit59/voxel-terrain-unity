@@ -90,7 +90,14 @@ public static class Chunk
     {
         MeshData meshData = new MeshData(true);
 
-        LoopThroughTheBlocks(chunkData, (x, y, z) => meshData = BlockHelper.GetMeshData(chunkData, x, y, z, meshData, chunkData.blocks[GetIndexFromPosition(chunkData, x, y, z)]));
+        bool[] isSolid = BlockHelper.BuildSolidTable();
+
+        // Same block order as LoopThroughTheBlocks (x fastest, then y, then z), without a delegate call per block.
+        int index = 0;
+        for (int z = 0; z < chunkData.chunkSize; z++)
+            for (int y = 0; y < chunkData.chunkHeight; y++)
+                for (int x = 0; x < chunkData.chunkSize; x++, index++)
+                    meshData = BlockHelper.GetMeshData(chunkData, x, y, z, meshData, chunkData.blocks[index], isSolid);
 
 
         return meshData;
