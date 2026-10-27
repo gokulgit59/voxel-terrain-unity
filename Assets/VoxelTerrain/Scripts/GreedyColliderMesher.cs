@@ -10,6 +10,19 @@ public static class GreedyColliderMesher
     {
         int[] dims = { chunkData.chunkSize, chunkData.chunkHeight, chunkData.chunkSize };
 
+        // Every lookup below stays inside this chunk, so resolve "solid and collidable" once per voxel
+        // straight from the block array instead of going through the world lookup for each test.
+        bool[] collidableType = CollidableTypes();
+        BlockType[] blocks = chunkData.blocks;
+        bool[] solid = new bool[blocks.Length];
+        for (int i = 0; i < blocks.Length; i++)
+            solid[i] = collidableType[(int)blocks[i]];
+        int strideY = chunkData.chunkSize;
+        int strideZ = chunkData.chunkSize * chunkData.chunkHeight;
+        int[] stride = { 1, strideY, strideZ };
+        int[] du = new int[3];
+        int[] dv = new int[3];
+
         for (int d = 0; d < 3; d++)
         {
             int u = (d + 1) % 3;
@@ -28,8 +41,9 @@ public static class GreedyColliderMesher
                 {
                     for (x[u] = 0; x[u] < dims[u]; x[u]++)
                     {
-                        bool blockCurrent = x[d] >= 0 && IsCollidable(chunkData, x[0], x[1], x[2]);
-                        bool blockCompare = x[d] < dims[d] - 1 && IsCollidable(chunkData, x[0] + q[0], x[1] + q[1], x[2] + q[2]);
+                        int index = x[0] + strideY * x[1] + strideZ * x[2];
+                        bool blockCurrent = x[d] >= 0 && solid[index];
+                        bool blockCompare = x[d] < dims[d] - 1 && solid[index + stride[d]];
 
                         if (blockCurrent == blockCompare)
                             mask[n] = 0;
@@ -75,8 +89,8 @@ public static class GreedyColliderMesher
                             x[u] = i;
                             x[v] = j;
 
-                            int[] du = new int[3];
-                            int[] dv = new int[3];
+                            du[0] = du[1] = du[2] = 0;
+                            dv[0] = dv[1] = dv[2] = 0;
                             du[u] = w;
                             dv[v] = h;
 
@@ -130,13 +144,18 @@ public static class GreedyColliderMesher
         }
     }
 
-    private static bool IsCollidable(ChunkData chunkData, int x, int y, int z)
+    // Indexed by (int)BlockType: true when the block is solid and generates a collider.
+    private static bool[] CollidableTypes()
     {
-        BlockType blockType = Chunk.GetBlockFromChunkCoordinates(chunkData, x, y, z);
-        if (blockType == BlockType.Nothing)
-            return false;
-        if (!BlockDataManager.blockTextureDataDictionary.TryGetValue(blockType, out TextureData data))
-            return false;
-        return data.isSolid && data.generatesCollider;
+        var values = (BlockType[])System.Enum.GetValues(typeof(BlockType));
+        bool[] result = new bool[values.Length];
+        foreach (BlockType blockType in values)
+        {
+            if (blockType == BlockType.Nothing)
+                continue;
+            if (BlockDataManager.blockTextureDataDictionary.TryGetValue(blockType, out TextureData data))
+                result[(int)blockType] = data.isSolid && data.generatesCollider;
+        }
+        return result;
     }
 }
