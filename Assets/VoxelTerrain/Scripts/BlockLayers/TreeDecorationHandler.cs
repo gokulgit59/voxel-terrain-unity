@@ -95,11 +95,9 @@ public class TreeDecorationHandler : BlockLayerHandler
         int cellX = FloorDiv(worldX, spacing);
         int cellZ = FloorDiv(worldZ, spacing);
 
-        System.Random cellRng = new System.Random(cellX * 92821 ^ cellZ * 68917 ^ mapSeedOffset.x ^ mapSeedOffset.y);
-        int anchorX = cellX * spacing + margin + cellRng.Next(0, jitterRange);
-        int anchorZ = cellZ * spacing + margin + cellRng.Next(0, jitterRange);
+        CellAnchor anchor = GetCellAnchor(cellX, cellZ, spacing, margin, jitterRange, mapSeedOffset);
 
-        if (worldX != anchorX || worldZ != anchorZ)
+        if (worldX != anchor.x || worldZ != anchor.z)
             return false;
 
         treeNoiseSettings.worldOffset = mapSeedOffset;
@@ -107,8 +105,41 @@ public class TreeDecorationHandler : BlockLayerHandler
         if (density < treeDensityThreshold)
             return false;
 
-        trunkHeight = cellRng.Next(minTrunkHeight, maxTrunkHeight + 1);
+        trunkHeight = anchor.trunkHeight;
         return true;
+    }
+
+    private struct CellAnchor
+    {
+        public int x, z, trunkHeight;
+    }
+
+    // Every column in a cell needs the same anchor, so it is computed once per cell instead of creating a
+    // System.Random for every column. The draws happen in the original order (jitter X, jitter Z, trunk
+    // height), so trees land in exactly the same places with the same heights.
+    private readonly System.Collections.Generic.Dictionary<Vector2Int, CellAnchor> anchorCache =
+        new System.Collections.Generic.Dictionary<Vector2Int, CellAnchor>();
+    private (int, int, int, int, int, int) anchorCacheKey;
+
+    private CellAnchor GetCellAnchor(int cellX, int cellZ, int spacing, int margin, int jitterRange, Vector2Int mapSeedOffset)
+    {
+        var key = (spacing, margin, mapSeedOffset.x, mapSeedOffset.y, minTrunkHeight, maxTrunkHeight);
+        if (key != anchorCacheKey || anchorCache.Count > 4096)
+        {
+            anchorCache.Clear();
+            anchorCacheKey = key;
+        }
+
+        var cell = new Vector2Int(cellX, cellZ);
+        if (anchorCache.TryGetValue(cell, out CellAnchor anchor))
+            return anchor;
+
+        System.Random cellRng = new System.Random(cellX * 92821 ^ cellZ * 68917 ^ mapSeedOffset.x ^ mapSeedOffset.y);
+        anchor.x = cellX * spacing + margin + cellRng.Next(0, jitterRange);
+        anchor.z = cellZ * spacing + margin + cellRng.Next(0, jitterRange);
+        anchor.trunkHeight = cellRng.Next(minTrunkHeight, maxTrunkHeight + 1);
+        anchorCache[cell] = anchor;
+        return anchor;
     }
 
     private static int FloorDiv(int a, int b)
