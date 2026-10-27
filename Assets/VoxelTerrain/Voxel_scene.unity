@@ -246,7 +246,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TreeDecorationHandler
   Next: {fileID: 0}
   treeNoiseSettings: {fileID: 11400000, guid: d1dd93c67cc8c614da91781c56119339, type: 2}
-  treeDensityThreshold: 0.8
+  treeDensityThreshold: 0.5
   minTrunkHeight: 5
   maxTrunkHeight: 8
   canopyRadius: 2
@@ -1144,7 +1144,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CaveLayerHandler
   Next: {fileID: 0}
   caveNoiseSettings: {fileID: 11400000, guid: 1ef4c1f9181cbb74c83e02f80b0433bc, type: 2}
-  caveThreshold: 0.3
+  caveThreshold: 0.39
   surfaceBuffer: 3
   worldFloor: 1
 --- !u!1 &1647741079
