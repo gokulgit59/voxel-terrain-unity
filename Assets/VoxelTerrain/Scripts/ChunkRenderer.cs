@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -13,6 +12,13 @@ public class ChunkRenderer : MonoBehaviour
     MeshCollider meshCollider;
     Mesh mesh;
     Mesh collisionMesh;
+
+    // Scratch buffers shared by all chunks (meshes are built on the main thread, one at a time).
+    static readonly List<Vector3> vertexBuffer = new List<Vector3>();
+    static readonly List<Vector2> uvBuffer = new List<Vector2>();
+    static readonly List<int> waterTriangleBuffer = new List<int>();
+    static readonly List<Vector3> colliderVertexBuffer = new List<Vector3>();
+    static readonly List<int> colliderTriangleBuffer = new List<int>();
     public bool showGizmo = false;
 
     public ChunkData ChunkData { get; private set; }
@@ -53,27 +59,38 @@ public class ChunkRenderer : MonoBehaviour
     {
         mesh.Clear();
 
+        // Land and water share one vertex buffer: land first, then water, with the water indices offset.
+        // Shared buffers are reused across rebuilds so uploading a chunk allocates nothing.
+        int landVertexCount = meshData.vertices.Count;
+        vertexBuffer.Clear();
+        vertexBuffer.AddRange(meshData.vertices);
+        vertexBuffer.AddRange(meshData.waterMesh.vertices);
+        uvBuffer.Clear();
+        uvBuffer.AddRange(meshData.uv);
+        uvBuffer.AddRange(meshData.waterMesh.uv);
+        waterTriangleBuffer.Clear();
+        foreach (int index in meshData.waterMesh.triangles)
+            waterTriangleBuffer.Add(index + landVertexCount);
+
         mesh.subMeshCount = 2;
-        mesh.vertices = meshData.vertices.Concat(meshData.waterMesh.vertices).ToArray();
-
-        mesh.SetTriangles(meshData.triangles.ToArray(), 0);
-        mesh.SetTriangles(meshData.waterMesh.triangles.Select(val => val + meshData.vertices.Count).ToArray(), 1);
-
-        mesh.uv = meshData.uv.Concat(meshData.waterMesh.uv).ToArray();
+        mesh.SetVertices(vertexBuffer);
+        mesh.SetTriangles(meshData.triangles, 0);
+        mesh.SetTriangles(waterTriangleBuffer, 1);
+        mesh.SetUVs(0, uvBuffer);
         mesh.RecalculateNormals();
 
         meshCollider.sharedMesh = null;
 
-        List<Vector3> colliderVertices = new List<Vector3>();
-        List<int> colliderTriangles = new List<int>();
-        GreedyColliderMesher.BuildColliderMesh(ChunkData, colliderVertices, colliderTriangles);
+        colliderVertexBuffer.Clear();
+        colliderTriangleBuffer.Clear();
+        GreedyColliderMesher.BuildColliderMesh(ChunkData, colliderVertexBuffer, colliderTriangleBuffer);
 
         collisionMesh.Clear();
-        collisionMesh.indexFormat = colliderVertices.Count > 65000
+        collisionMesh.indexFormat = colliderVertexBuffer.Count > 65000
             ? UnityEngine.Rendering.IndexFormat.UInt32
             : UnityEngine.Rendering.IndexFormat.UInt16;
-        collisionMesh.vertices = colliderVertices.ToArray();
-        collisionMesh.triangles = colliderTriangles.ToArray();
+        collisionMesh.SetVertices(colliderVertexBuffer);
+        collisionMesh.SetTriangles(colliderTriangleBuffer, 0);
 
         meshCollider.sharedMesh = collisionMesh;
     }
