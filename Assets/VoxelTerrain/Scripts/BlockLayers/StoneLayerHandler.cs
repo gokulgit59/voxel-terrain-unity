@@ -18,17 +18,14 @@ public class StoneLayerHandler : BlockLayerHandler
         stoneNoiseSettings.worldOffset = mapSeedOffset;
         float stoneNoise = MyNoise.OctavePerlin(chunkData.worldPosition.x + x, chunkData.worldPosition.z + z, stoneNoiseSettings);
 
-        int endPosition = surfaceHeightNoise;
-        if (chunkData.worldPosition.y < 0)
-        {
-            endPosition = chunkData.worldPosition.y + chunkData.chunkHeight;
-        }
+        // Loop in world Y, clamped to this chunk, and write with chunk-local coordinates.
+        int endPosition = Mathf.Min(surfaceHeightNoise, chunkData.worldPosition.y + chunkData.chunkHeight - 1);
 
         if (stoneNoise > stoneThreshold)
         {
             for (int i = chunkData.worldPosition.y; i <= endPosition; i++)
             {
-                Vector3Int pos = new Vector3Int(x, i, z);
+                Vector3Int pos = new Vector3Int(x, i - chunkData.worldPosition.y, z);
                 Chunk.SetBlock(chunkData, pos, BlockType.Stone);
             }
             return true;

@@ -35,7 +35,7 @@ public class CaveLayerHandler : BlockLayerHandler
             float caveNoise = MyNoise.OctavePerlin3D(chunkData.worldPosition.x + x, i, chunkData.worldPosition.z + z, caveNoiseSettings);
             if (caveNoise < caveThreshold)
             {
-                Vector3Int pos = new Vector3Int(x, i, z);
+                Vector3Int pos = new Vector3Int(x, i - chunkData.worldPosition.y, z);
                 Chunk.SetBlock(chunkData, pos, BlockType.Air);
                 carvedAny = true;
             }

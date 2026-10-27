@@ -6,7 +6,8 @@ public class AirLayerHandler : BlockLayerHandler
 {
     protected override bool TryHandling(ChunkData chunkData, int x, int y, int z, int surfaceHeightNoise, Vector2Int mapSeedOffset)
     {
-        if (y > surfaceHeightNoise)
+        // y is local to the chunk; the surface height is a world height.
+        if (chunkData.worldPosition.y + y > surfaceHeightNoise)
         {
             Vector3Int pos = new Vector3Int(x, y, z);
             Chunk.SetBlock(chunkData, pos, BlockType.Air);
