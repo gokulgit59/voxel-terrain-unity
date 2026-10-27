@@ -250,6 +250,7 @@ MonoBehaviour:
   minTrunkHeight: 5
   maxTrunkHeight: 8
   canopyRadius: 2
+  treeSpacing: 8
 --- !u!1 &414629179
 GameObject:
   m_ObjectHideFlags: 0
@@ -1417,7 +1418,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c444eac5dd40e54d867a77cef385b9f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StoneLayerHandler
-  Next: {fileID: 1472503803}
+  Next: {fileID: 0}
   stoneThreshold: 0.65
   stoneNoiseSettings: {fileID: 11400000, guid: 849151d2a25a154409c91ee70cc91c6b, type: 2}
 --- !u!1 &1844021380
